@@ -2,7 +2,22 @@ name: Docker Build and Publish
 
 on:
   push:
-    branches: [ "main", "master" ] # 当推送到主分支时自动触发
+    branches: [ "main", "master" ]
+    # 👇 新增：精准路径过滤
+    paths:
+      - 'src/server-entry.js'
+      - 'src/fetch_usd.js'
+      - 'src/fetch_usdt.js'
+      - 'src/utils.js'
+      - 'src/config.js'
+      - 'Dockerfile'
+      - 'package.json'
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+# ... (下方内容保持不变)
 
 env:
   REGISTRY: ghcr.io
