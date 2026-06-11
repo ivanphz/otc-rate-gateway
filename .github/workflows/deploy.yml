@@ -13,6 +13,8 @@ on:
       - 'src/config.js'
       - 'wrangler.toml'
 
+  workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
