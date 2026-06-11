@@ -1,0 +1,23 @@
+name: Cleanup Old Docker Images
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # 每周日凌晨 2 点自动触发清理
+  workflow_dispatch:     # 保留手动触发按钮
+
+jobs:
+  clean-ghcr:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write    # 核心：必须赋予该脚本删除包的权限
+
+    steps:
+      - name: Delete untagged images
+        uses: snok/container-retention-policy@v3
+        with:
+          image-names: otc-rate-gateway # 你的镜像名称
+          cut-off: 1 minute ago
+          timestamp-to-use: updated_at
+          account-type: personal        # 如果是在个人账号下请保持 personal，如果是组织请改为 org
+          untagged-only: true           # 关键：只删除没有标签的垃圾镜像，绝对不碰 latest
+          token: ${{ secrets.GITHUB_TOKEN }} # Github 自动提供的 Token
