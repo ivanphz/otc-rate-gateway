@@ -9,12 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy to Cloudflare
     steps:
-      - uses: actions/checkout@v3
+      # 把 v3 升级到 v4，彻底解决 Node.js 20 警告
+      - uses: actions/checkout@v4
       
       - name: Publish Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          # 👇 明确告诉 Wrangler 只拿 worker-entry.js 去编译部署
-          command: deploy --name rate-api --compatibility-date 2026-06-10
+          # 增加这一行，强制插件使用最新的 wrangler 版本，消除过时警告
+          wranglerVersion: '4' 
+          command: deploy src/worker-entry.js --name rate-api --compatibility-date 2026-06-10
