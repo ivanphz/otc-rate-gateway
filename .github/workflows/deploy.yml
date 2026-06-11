@@ -1,0 +1,20 @@
+name: Deploy Worker
+on:
+  push:
+    branches:
+      - main  # 当你推送到 main 分支时触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Publish Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          # 👇 明确告诉 Wrangler 只拿 worker-entry.js 去编译部署
+          command: deploy src/worker-entry.js --name rate-api --compatibility-date 2026-06-10
