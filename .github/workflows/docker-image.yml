@@ -3,7 +3,7 @@ name: Docker Build and Publish
 on:
   push:
     branches: [ "main", "master" ]
-    # 👇 新增：精准路径过滤
+    # 精准路径过滤：只有这些文件改动才触发 Docker 编译
     paths:
       - 'src/server-entry.js'
       - 'src/fetch_usd.js'
@@ -12,12 +12,6 @@ on:
       - 'src/config.js'
       - 'Dockerfile'
       - 'package.json'
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
-
-jobs:
-# ... (下方内容保持不变)
 
 env:
   REGISTRY: ghcr.io
@@ -28,17 +22,16 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # 允许 GitHub Actions 写入镜像库
+      packages: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 1. 新增：安装 QEMU 模拟器 (用于跨平台编译 ARM)
+      # 设置跨平台编译环境 (支持 ARM64)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 2. 新增：设置 Docker Buildx (支持多架构打包的引擎)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -55,5 +48,5 @@ jobs:
           context: .
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          # 3. 新增：明确指定同时构建这两种主流架构
+          # 明确指定同时构建 x86 和 ARM 双架构
           platforms: linux/amd64,linux/arm64
