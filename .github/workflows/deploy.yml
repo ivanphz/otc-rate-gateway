@@ -1,8 +1,17 @@
 name: Deploy Worker
+
 on:
   push:
     branches:
-      - main  # 当你推送到 main 分支时触发
+      - main
+    # 👇 新增：精准路径过滤
+    paths:
+      - 'src/worker-entry.js'
+      - 'src/fetch_usd.js'
+      - 'src/fetch_usdt.js'
+      - 'src/utils.js'
+      - 'src/config.js'
+      - 'wrangler.toml'
 
 jobs:
   deploy:
