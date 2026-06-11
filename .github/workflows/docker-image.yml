@@ -12,6 +12,8 @@ on:
       - 'src/config.js'
       - 'Dockerfile'
       - 'package.json'
+      
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
