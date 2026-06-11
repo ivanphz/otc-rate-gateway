@@ -17,4 +17,4 @@ jobs:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: ${{ secrets.CF_ACCOUNT_ID }}
           # 👇 明确告诉 Wrangler 只拿 worker-entry.js 去编译部署
-          command: deploy src/worker-entry.js --name rate-api --compatibility-date 2026-06-10
+          command: deploy --name rate-api --compatibility-date 2026-06-10
