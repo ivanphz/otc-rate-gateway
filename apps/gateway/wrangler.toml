@@ -2,7 +2,12 @@ name = "otc-gateway-api"
 main = "src/worker.js"
 compatibility_date = "2026-06-10"
 
-# ⚠️ 私人节点地址不要写在这里！在 CF 后台 Settings > Variables > 添加 NODES(加密变量)，
+# 关键：不加这行，每次 wrangler deploy 都会把 CF 后台手动加的 Variables 全部清空
+# （Wrangler 默认把 wrangler.toml 当作变量的唯一真相源，凡是没写在这里的变量都会被删除）。
+# 加上它之后，后台手动配置的 NODES 等变量不会再被部署冲掉。
+keep_vars = true
+
+# ⚠️ 私人节点地址不要写在这里！在 CF 后台 Settings > Variables > 添加 NODES(明文变量即可)，
 #    或本地执行： npx wrangler secret put NODES
 #    NODES 值示例(JSON 字符串)：
 #    [{"id":"🇯🇵 VPS-Tokyo","url":"https://your-vps.example.com"},{"id":"☁️ CF Worker","url":"https://your-spider.example.com"}]
