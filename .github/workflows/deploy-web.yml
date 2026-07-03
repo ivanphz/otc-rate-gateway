@@ -14,7 +14,7 @@ jobs:
       - name: Generate config.js (inject gateway URL from secret)
         run: |
           cp apps/web/config.example.js apps/web/config.js
-          sed -i "s|__WORKER_URL__|${{ secrets.GATEWAY_URL }}|g" apps/web/config.js
+          sed -i "s|__WORKER_URL__|${{ vars.GATEWAY_URL }}|g" apps/web/config.js
       - name: Deploy Pages
         uses: cloudflare/wrangler-action@v3
         with:
