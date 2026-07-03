@@ -1,9 +1,0 @@
-version: '3.8'
-
-services:
-  rate-api:
-    build: .
-    container_name: rate-api
-    restart: always
-    ports:
-      - "127.0.0.1:3000:3000" # 仅暴露给本地，通过 Caddy 代理出去，保证安全
