@@ -1,2 +1,0 @@
-name = "rate-api"
-main = "src/worker-entry.js"
