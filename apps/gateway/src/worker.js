@@ -14,8 +14,12 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
     // —— 读取节点配置 ——
+    // CF 后台变量类型选「文本」时 env.NODES 是字符串，需要 JSON.parse；
+    // 选「JSON」时 CF 已经帮你解析成对象了，直接用，此时不能再 JSON.parse。
     let NODES = [];
-    try { NODES = JSON.parse(env.NODES || "[]"); } catch (e) { NODES = []; }
+    try {
+      NODES = typeof env.NODES === "string" ? JSON.parse(env.NODES) : (env.NODES || []);
+    } catch (e) { NODES = []; }
     if (!Array.isArray(NODES) || NODES.length === 0) {
       return new Response(JSON.stringify({
         error: "未配置 NODES 环境变量。请在 Cloudflare 后台 Variables 里添加 NODES(JSON 字符串)。"
