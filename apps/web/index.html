@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>专业利润计算器 (全功能风控悬浮版)</title>
+    <script src="./config.js"></script>
+    <style>
+        :root { --bg: #f4f5f7; --card: #ffffff; --yellow: #FFF2CC; --blue: #0052cc; --red: #C00000; --green: #28a745; --gray: #808080; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); margin: 0; padding: 15px; color: #333; padding-bottom: 50px; }
+        
+        /* 极致精简的悬浮顶部 */
+        .sticky-header { position: sticky; top: 0; z-index: 100; background: var(--card); padding: 12px 15px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; }
+        .rate-control-group { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 5px; }
+        .rate-main-row { display: flex; align-items: center; justify-content: space-between; font-weight: bold; }
+        .rate-input { width: 90px; padding: 6px; font-size: 16px; text-align: center; background: var(--yellow); border: 1px solid #ddd; border-radius: 5px; transition: all 0.2s; font-weight: bold;}
+        .rate-input:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 2px rgba(0,82,204,0.2); }
+        .sys-rate-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; }
+        .btn-restore { background: #e2e8f0; border: none; padding: 2px 6px; border-radius: 4px; font-size: 10px; color: #4a5568; cursor: pointer; transition: 0.2s;}
+        .btn-restore:hover { background: #cbd5e0; }
+
+        /* 自然文档流的信息区与响应式网格 */
+        .info-section { background: var(--card); padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .info-grid { display: flex; flex-direction: column; gap: 15px; }
+        @media (min-width: 800px) {
+            .info-grid { display: grid; grid-template-columns: 220px 1fr; align-items: start; }
+        }
+        .btn-fetch { padding: 12px; background: var(--blue); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: all 0.2s ease;}
+        .btn-fetch { padding: 12px; background: var(--blue); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: all 0.2s ease;}
+        .btn-fetch:active { transform: scale(0.98); }
+        .btn-fetch:disabled { background: #a0aec0; cursor: not-allowed; }
+        .calc-log { font-size: 11px; color: var(--green); margin-bottom: 4px; font-weight: normal; background: #e6ffed; padding: 4px 8px; border-radius: 4px; display: inline-block;}
+        
+        .sources-container { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;}
+        .source-box { background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; font-size: 12px; position: relative; }
+        .source-box.ignored { opacity: 0.6; border-style: dashed; }
+        .source-box strong { color: var(--blue); }
+        .badge-ignored { position: absolute; top: 6px; right: 8px; font-size: 9px; background: #e2e8f0; padding: 2px 4px; border-radius: 3px; color: #4a5568;}
+
+        .main-grid { display: flex; flex-direction: column; gap: 15px; }
+        @media (min-width: 800px) { .main-grid { display: grid; grid-template-columns: 1fr 1fr; } }
+
+        .card { background: var(--card); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; transition: all 0.3s ease; border: 2px solid transparent;}
+        .card-header { padding: 12px 15px; font-weight: bold; font-size: 16px; display: flex; align-items: center; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .header-sub { font-size: 12px; font-weight: normal; margin-left: 8px; opacity: 0.8; }
+        .head-sell { background: #ffe5e5; color: #c00000; }
+        .head-buy { background: #e5f5e5; color: #1e7e34; }
+        .card-body { padding: 15px; }
+
+        /* 风控变色样式 */
+        .card.card-loss { border-color: #ff4d4f; background: #fff5f5; }
+        .card.card-warning { border-color: #ffd43b; background: #fffbe6; }
+        
+        .input-row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .field { flex: 1; }
+        .field label { display: block; font-size: 13px; color: #555; margin-bottom: 5px; font-weight: bold; }
+        .field input { width: 100%; box-sizing: border-box; padding: 12px; font-size: 18px; font-weight: bold; text-align: center; background: var(--yellow); border: 1px solid #ccc; border-radius: 6px; }
+
+        .results-area { transition: opacity 0.3s ease; }
+        .results-area.faded { opacity: 0.2; pointer-events: none; }
+        
+        /* 恢复三框布局网格 */
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+        .stat-box { background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.1); padding: 10px 5px; border-radius: 8px; text-align: center; }
+        .stat-box label { font-size: 11px; color: var(--gray); display: block; margin-bottom: 5px; }
+        .stat-box .val { font-size: 16px; font-weight: bold; color: var(--blue); }
+        .stat-box .val.profit { color: var(--red); font-size: 18px; }
+
+        /* 恢复利润概算报价样式 */
+        .ref-area { margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 12px; }
+        .ref-title { font-size: 12px; color: var(--gray); margin-bottom: 8px; font-weight: bold; text-align: center; }
+        .ref-table { display: flex; justify-content: space-between; gap: 8px; }
+        .ref-item { flex: 1; background: #fffbe6; padding: 8px 2px; border-radius: 5px; border: 1px solid #ffe58f; text-align: center; }
+        .ref-item span { display: block; font-size: 11px; color: #856404; margin-bottom: 3px; }
+        .ref-item strong { font-size: 14px; color: #d48806; }
+
+        .hint-box { margin-top: 15px; padding: 12px; background: #e6ffed; border: 1px solid #b7eb8f; border-radius: 6px; color: #28a745; font-size: 13px; font-weight: bold; line-height: 1.5; }
+        
+        /* 风控提示框覆盖样式 */
+        .hint-box.hint-loss { background: #ffe3e3; border-color: #ffa8a8; color: #c92a2a; }
+        .hint-box.hint-warning { background: #fff9db; border-color: #ffe066; color: #e67700; }
+    </style>
+</head>
+<body>
+
+    <div class="sticky-header">
+        <div class="rate-control-group">
+            <div class="rate-main-row">
+                <span>U对RMB 👉</span> 
+                <input type="number" step="0.01" min="0" id="u_rate" class="rate-input" value="6.83" onfocus="this.select()" oninput="calcAll()">
+            </div>
+            <div class="sys-rate-row">
+                <span id="sys_u_display">👑 系统均价: -</span>
+                <button class="btn-restore" onclick="restoreRate('u')">↺ 还原</button>
+            </div>
+        </div>
+        <div class="rate-control-group">
+            <div class="rate-main-row">
+                <span>USD对RMB 👉</span> 
+                <input type="number" step="0.01" min="0" id="usd_rate" class="rate-input" value="7.15" placeholder="留空" onfocus="this.select()" oninput="calcAll()">
+            </div>
+            <div class="sys-rate-row">
+                <span id="sys_usd_display">👑 系统均价: -</span>
+                <button class="btn-restore" onclick="restoreRate('usd')">↺ 还原</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <div class="info-grid">
+            <div>
+                <button class="btn-fetch" onclick="fetchRates()" id="fetchBtn">
+                    <span style="font-size: 15px;">🔄 刷新汇率雷达</span>
+                    <div id="updateTime" style="font-size: 11px; font-weight: normal; margin-top: 2px; opacity: 0.9;">点击获取最新市场物价</div>
+                </button>
+                <div id="node_health_log" style="font-size: 11px; margin-top: 10px; padding: 10px; background: #f0f2f5; border-radius: 8px; display: none; border: 1px solid #e2e8f0;"></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <div>
+                    <div id="u_calc_log" class="calc-log" style="display: none;"></div>
+                    <div id="usdt_sources" class="sources-container"></div>
+                </div>
+                <div style="border-top: 1px dashed #eee; padding-top: 10px;">
+                    <div id="usd_calc_log" class="calc-log" style="display: none;"></div>
+                    <div id="usd_sources" class="sources-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-grid" id="main_grid">
+        <div id="card_sell_u" class="card">
+            <div class="card-header head-sell">🔴 卖出U <span class="header-sub">| 我出 U，收 RMB</span></div>
+            <div class="card-body">
+                <div class="input-row">
+                    <div class="field"><label>固定出U数量</label><input type="number" step="1" min="0" id="c1_amt" onfocus="this.select()" oninput="calcAll()"></div>
+                    <div class="field"><label>目标收取金额(RMB)</label><input type="number" step="1" min="0" id="c1_target" onfocus="this.select()" oninput="calcAll()"></div>
+                </div>
+                <div id="c1_results" class="results-area faded">
+                    <div class="stat-grid">
+                        <div class="stat-box"><label>实际利差(%)</label><div id="c1_margin" class="val">-</div></div>
+                        <div class="stat-box"><label>实际汇率</label><div id="c1_actual" class="val">-</div></div>
+                        <div class="stat-box"><label>净利润(RMB)</label><div id="c1_profit" class="val profit">-</div></div>
+                    </div>
+                    <div class="ref-area"><div class="ref-title">参考报价 (按目标利润率)</div><div class="ref-table" id="c1_refs"></div></div>
+                    <div id="c1_hint" class="hint-box"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="card_buy_u" class="card">
+            <div class="card-header head-buy">🟢 买入U <span class="header-sub">| 我收 U，付 RMB</span></div>
+            <div class="card-body">
+                <div class="input-row">
+                    <div class="field"><label>固定收U数量</label><input type="number" step="1" min="0" id="c2_amt" onfocus="this.select()" oninput="calcAll()"></div>
+                    <div class="field"><label>目标支付金额(RMB)</label><input type="number" step="1" min="0" id="c2_target" onfocus="this.select()" oninput="calcAll()"></div>
+                </div>
+                <div id="c2_results" class="results-area faded">
+                    <div class="stat-grid">
+                        <div class="stat-box"><label>实际利差(%)</label><div id="c2_margin" class="val">-</div></div>
+                        <div class="stat-box"><label>实际汇率</label><div id="c2_actual" class="val">-</div></div>
+                        <div class="stat-box"><label>净利润(RMB)</label><div id="c2_profit" class="val profit">-</div></div>
+                    </div>
+                    <div class="ref-area"><div class="ref-title">参考报价 (按目标利润率)</div><div class="ref-table" id="c2_refs"></div></div>
+                    <div id="c2_hint" class="hint-box"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="card_recv_rmb" class="card">
+            <div class="card-header head-sell">🔴 代收RMB <span class="header-sub">| 我收 RMB，付 U给对方</span></div>
+            <div class="card-body">
+                <div class="input-row">
+                    <div class="field"><label>代收金额(RMB)</label><input type="number" step="1" min="0" id="c3_amt" onfocus="this.select()" oninput="calcAll()"></div>
+                    <div class="field"><label>目标支付数量(U)</label><input type="number" step="1" min="0" id="c3_target" onfocus="this.select()" oninput="calcAll()"></div>
+                </div>
+                <div id="c3_results" class="results-area faded">
+                    <div class="stat-grid">
+                        <div class="stat-box"><label>实际利差(%)</label><div id="c3_margin" class="val">-</div></div>
+                        <div class="stat-box"><label>实际汇率</label><div id="c3_actual" class="val">-</div></div>
+                        <div class="stat-box"><label>净利润(RMB)</label><div id="c3_profit" class="val profit">-</div></div>
+                    </div>
+                    <div class="ref-area"><div class="ref-title">参考报价 (按目标利润率)</div><div class="ref-table" id="c3_refs"></div></div>
+                    <div id="c3_hint" class="hint-box"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="card_pay_rmb" class="card">
+            <div class="card-header head-buy">🟢 代付RMB <span class="header-sub">| 我付 RMB，收 U</span></div>
+            <div class="card-body">
+                <div class="input-row">
+                    <div class="field"><label>代付金额(RMB)</label><input type="number" step="1" min="0" id="c4_amt" onfocus="this.select()" oninput="calcAll()"></div>
+                    <div class="field"><label>目标收取数量(U)</label><input type="number" step="1" min="0" id="c4_target" onfocus="this.select()" oninput="calcAll()"></div>
+                </div>
+                <div id="c4_results" class="results-area faded">
+                    <div class="stat-grid">
+                        <div class="stat-box"><label>实际利差(%)</label><div id="c4_margin" class="val">-</div></div>
+                        <div class="stat-box"><label>实际汇率</label><div id="c4_actual" class="val">-</div></div>
+                        <div class="stat-box"><label>净利润(RMB)</label><div id="c4_profit" class="val profit">-</div></div>
+                    </div>
+                    <div class="ref-area"><div class="ref-title">参考报价 (按目标利润率)</div><div class="ref-table" id="c4_refs"></div></div>
+                    <div id="c4_hint" class="hint-box"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CONFIG = window.APP_CONFIG || {};
+        const WORKER_URL = CONFIG.WORKER_URL || "";
+        const MODULE_ORDER = CONFIG.MODULE_ORDER || ['card_sell_u', 'card_buy_u', 'card_recv_rmb', 'card_pay_rmb'];
+        const RATE_GROUPS = CONFIG.RATE_GROUPS || { usd: [], usdt: [] };
+        // 👇 新增这行，读取外部设定的 5% (如果没有设定则兜底默认 0.05)
+        const WARN_DEVIATION_PCT = CONFIG.WARN_DEVIATION_PCT || 0.05;
+        
+        let isFetchingRates = false; 
+        let globalSysURate = 0;   
+        let globalSysUsdRate = 0; 
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!WORKER_URL) alert("⚠️ 请先在 config.js 中配置 WORKER_URL！");
+            const grid = document.getElementById('main_grid');
+            MODULE_ORDER.forEach(id => {
+                const card = document.getElementById(id);
+                if (card) grid.appendChild(card);
+            });
+            if (WORKER_URL) fetchRates();
+        });
+
+        function restoreRate(type) {
+            if (type === 'u' && globalSysURate > 0) {
+                document.getElementById('u_rate').value = globalSysURate.toFixed(3);
+            } else if (type === 'usd' && globalSysUsdRate > 0) {
+                document.getElementById('usd_rate').value = globalSysUsdRate.toFixed(3);
+            }
+            calcAll();
+        }
+
+        function calculateGroupedAverage(dataArr, configGroups) {
+            let groupedData = {};
+            let usedIds = new Set();
+            configGroups.forEach(g => groupedData[g.name] = []);
+            dataArr.forEach(src => {
+                if (!src.success || !src.rate) return;
+                if (src.role === 'reference') return; // 参考源永不进均价
+                for (let group of configGroups) {
+                    // 优先按稳定 id 精确匹配；兼容旧的 match 子串写法
+                    const hit = (group.ids && group.ids.includes(src.id))
+                             || (group.match && group.match.some(k => (src.source || '').includes(k)));
+                    if (hit) {
+                        groupedData[group.name].push(src.rate);
+                        usedIds.add(src.id);
+                        break;
+                    }
+                }
+            });
+            let finalGroupAverages = [];
+            let formulaTextArr = [];
+            for (const [groupName, rates] of Object.entries(groupedData)) {
+                if (rates.length > 0) {
+                    const groupAvg = rates.reduce((a, b) => a + b, 0) / rates.length;
+                    finalGroupAverages.push(groupAvg);
+                    formulaTextArr.push(`${groupName}: ${groupAvg.toFixed(3)}`);
+                }
+            }
+            let finalAvg = null;
+            if (finalGroupAverages.length > 0) {
+                finalAvg = finalGroupAverages.reduce((a, b) => a + b, 0) / finalGroupAverages.length;
+            }
+            return { finalAvg, formulaText: formulaTextArr.join(' ＋ '), usedIds };
+        }
+
+        function calcAll() {
+            let myURate = parseFloat(document.getElementById('u_rate').value) || 0;
+            let myUsdRate = parseFloat(document.getElementById('usd_rate').value) || 0;
+            
+            myURate = Math.abs(myURate); 
+            myUsdRate = Math.abs(myUsdRate);
+
+            const configs = [
+                { id: 'c1', type: 'sell_u', title: '卖出U (我出U,收RMB)' },
+                { id: 'c2', type: 'buy_u', title: '买入U (我收U,付RMB)' },
+                { id: 'c3', type: 'recv_rmb', title: '代收RMB (我收RMB,付U)' },
+                { id: 'c4', type: 'pay_rmb', title: '代付RMB (我付RMB,收U)' }
+            ];
+
+            configs.forEach(conf => {
+                let amt = Math.abs(parseFloat(document.getElementById(conf.id + '_amt').value) || 0);
+                let target = Math.abs(parseFloat(document.getElementById(conf.id + '_target').value) || 0);
+                
+                const cardEl = document.getElementById('card_' + conf.type);
+                const resultsArea = document.getElementById(conf.id + '_results');
+                const refBox = document.getElementById(conf.id + '_refs');
+                const hint = document.getElementById(conf.id + '_hint');
+
+                // 🌟 完美还原：3%~5% 的利润参考表算法
+                if (amt > 0 && myURate > 0) {
+                    let refHtml = ''; [0.03, 0.04, 0.05].forEach(p => {
+                        let price = 0;
+                        if (conf.type === 'sell_u') price = amt * myURate * (1 + p);
+                        if (conf.type === 'buy_u') price = amt * myURate * (1 - p);
+                        if (conf.type === 'recv_rmb') price = amt / (myURate * (1 + p));
+                        if (conf.type === 'pay_rmb') price = amt / (myURate * (1 - p));
+                        refHtml += `<div class="ref-item"><span>${p*100}%利润</span><strong>${price.toFixed(2)}</strong></div>`;
+                    });
+                    refBox.innerHTML = refHtml;
+                }
+
+                if (!amt || !target || !myURate) {
+                    resultsArea.classList.add('faded');
+                    hint.style.display = 'none';
+                    cardEl.className = 'card'; 
+                    return; 
+                }
+
+                resultsArea.classList.remove('faded');
+                hint.style.display = 'block';
+                
+                let actualRate, margin, uProfit, usdProfit;
+                
+                if (conf.type === 'sell_u') {
+                    actualRate = target / amt;
+                    uProfit = target - (amt * myURate);
+                    margin = (actualRate - myURate) / myURate;
+                    usdProfit = myUsdRate > 0 ? target - (amt * myUsdRate) : 0;
+                } else if (conf.type === 'buy_u') {
+                    actualRate = target / amt;
+                    uProfit = (amt * myURate) - target;
+                    margin = (myURate - actualRate) / myURate;
+                    usdProfit = myUsdRate > 0 ? (amt * myUsdRate) - target : 0;
+                } else if (conf.type === 'recv_rmb') {
+                    actualRate = amt / target;
+                    uProfit = amt - (target * myURate);
+                    margin = (actualRate - myURate) / myURate;
+                    usdProfit = myUsdRate > 0 ? amt - (target * myUsdRate) : 0;
+                } else { 
+                    actualRate = amt / target;
+                    uProfit = (target * myURate) - amt;
+                    margin = (myURate - actualRate) / myURate;
+                    usdProfit = myUsdRate > 0 ? (target * myUsdRate) - amt : 0;
+                }
+
+                // 🌟 完美还原：利差数值填充及 3%~4% 变绿颜色响应逻辑
+                document.getElementById(conf.id + '_margin').innerText = (margin * 100).toFixed(2) + '%';
+                document.getElementById(conf.id + '_actual').innerText = actualRate.toFixed(3);
+                document.getElementById(conf.id + '_profit').innerText = uProfit.toFixed(2);
+                document.getElementById(conf.id + '_margin').style.color = (margin >= 0.03 && margin <= 0.04) ? 'var(--green)' : 'var(--blue)';
+
+                let diffText = "";
+                if (myUsdRate > 0) {
+                    let diff = usdProfit - uProfit;
+                    if (diff > 0) diffText = `<br><span style="font-weight:normal; font-size:11px;">👉 (含USD汇差多赚: ${diff.toFixed(2)} 元)</span>`;
+                    else if (diff < 0) diffText = `<br><span style="font-weight:normal; font-size:11px; color:var(--red);">👉 (含USD汇差少赚: ${Math.abs(diff).toFixed(2)} 元)</span>`;
+                }
+
+                // ==========================================
+                // 🌪️ 整合：绝对亏损与暴利偏离的卡片级风控
+                // ==========================================
+                let hintMsg = `💡 实际折合汇率: <b>${actualRate.toFixed(3)}</b> ｜ 盘口利差: <b>${(margin*100).toFixed(2)}%</b> ｜ 净赚: <b>${uProfit.toFixed(2)}</b> 元${diffText}`;
+                let hintClass = "hint-box";
+                let cardClass = "card";
+
+                // 🔴 1. 绝对亏损拦截 (最高优先级：只要利差小于0，立刻红牌警告)
+                if (margin < 0) {
+                    hintClass = "hint-box hint-loss";
+                    cardClass = "card card-loss";
+                    hintMsg = `⛔ 亏损警告：当前操作将导致净亏损 <b>${Math.abs(uProfit).toFixed(2)}</b> 元，请立即检查价格！<br>` + hintMsg;
+                }
+                // 🟡 2. 暴利/偏离防呆拦截 (黄牌警告：只有在不亏损的前提下，才去判断是否偏离系统价过高)
+                else if (globalSysURate > 0 && myURate > 0) {
+                    if (conf.type === 'sell_u' || conf.type === 'recv_rmb') {
+                        if (myURate >= globalSysURate * (1 + WARN_DEVIATION_PCT)) {
+                            hintClass = "hint-box hint-warning";
+                            cardClass = "card card-warning";
+                            hintMsg = `⚠️ 暴利预警：您设定的汇率高出市场均价超 ${(WARN_DEVIATION_PCT * 100).toFixed(0)}%，请确认报价合理性！<br>` + hintMsg;
+                        }
+                    } else {
+                        if (myURate <= globalSysURate * (1 - WARN_DEVIATION_PCT)) {
+                            hintClass = "hint-box hint-warning";
+                            cardClass = "card card-warning";
+                            hintMsg = `⚠️ 暴利预警：您设定的采购价低于市场均价超 ${(WARN_DEVIATION_PCT * 100).toFixed(0)}%，请防范脱离盘口的虚假利润！<br>` + hintMsg;
+                        }
+                    }
+                }
+
+                hint.className = hintClass;
+                cardEl.className = cardClass;
+                hint.innerHTML = hintMsg;
+        }); // 👈 必须补上这行：闭合 configs.forEach
+        } // 👈 必须补上这行：闭合 calcAll 函数主体
+
+        async function fetchRates() {
+            if (!WORKER_URL || isFetchingRates) return;
+            const btn = document.getElementById('fetchBtn');
+            const timeTag = document.getElementById('updateTime');
+            
+            isFetchingRates = true;
+            btn.disabled = true;
+            btn.querySelector('span').innerText = "📡 行情雷达扫描中...";
+            timeTag.innerText = "正在拉取全网数据计算均价...";
+            
+            const renderAndCalculate = (dataArr, elementId, type, configGroups, logElementId) => {
+                let html = '';
+                const engineResult = calculateGroupedAverage(dataArr, configGroups);
+                
+                dataArr.forEach(src => {
+                    if (src.success && src.rate) {
+                        const isRef = src.role === 'reference';
+                        const isIgnored = isRef || !engineResult.usedIds.has(src.id);
+                        const ignoredClass = isIgnored ? 'ignored' : '';
+                        let badgeText = isRef ? '📎 参考价' : (isIgnored ? '⚠️ 未入组' : '');
+                        const ignoredBadge = badgeText ? `<span class="badge-ignored">${badgeText}</span>` : '';
+
+                        // 节点与延迟由网关以独立字段提供（不再从名称正则解析）
+                        let sourceText = src.source;
+                        let nodeBadge = '';
+                        if (src.node) {
+                            const latTxt = (src.latency != null) ? `(${src.latency}ms)` : '';
+                            nodeBadge = `<span style="flex-shrink: 0; font-size: 10px; color: #666; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">⚡ ${src.node}${latTxt}</span>`;
+                        }
+
+                        // 👇 修复点2：给 flex 容器加上 padding-right: 45px，防止和“仅参考”重叠
+                        html += `
+                        <div class="source-box ${ignoredClass}">
+                            ${ignoredBadge}
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; padding-right: 45px;">
+                                <span style="word-break: break-all;"><strong>✅ ${sourceText}</strong>: ${src.rate.toFixed(3)}</span>
+                                ${nodeBadge}
+                            </div>
+                            ${src.debug_summary ? `<div class="debug-text" style="margin-top: 4px; font-size: 11px; color: #888;">${src.debug_summary}</div>` : ''}
+                        </div>`;
+                    } else {
+                        html += `
+                        <div class="source-box fail">
+                            <strong>❌ ${src.source}</strong>
+                            <div class="debug-text" style="color: #c92a2a; margin-top: 4px; font-size: 11px;">${src.debug_summary || src.error || '接口拦截或网络异常'}</div>
+                        </div>`;
+                    }
+                });
+
+                document.getElementById(elementId).innerHTML = html;
+
+                if (engineResult.finalAvg) {
+                    let avgRate = engineResult.finalAvg;
+                    if (type === 'u') {
+                        globalSysURate = avgRate;
+                        document.getElementById('sys_u_display').innerText = `👑 系统均价: ${avgRate.toFixed(3)}`;
+                        document.getElementById('u_rate').value = avgRate.toFixed(3);
+                    } else if (type === 'usd') {
+                        globalSysUsdRate = avgRate;
+                        document.getElementById('sys_usd_display').innerText = `👑 系统均价: ${avgRate.toFixed(3)}`;
+                        document.getElementById('usd_rate').value = avgRate.toFixed(3);
+                    }
+                    
+                    const logEl = document.getElementById(logElementId);
+                    logEl.style.display = 'inline-block';
+                    logEl.innerText = `🧮 公式：(${engineResult.formulaText}) / 组数`;
+                }
+            };
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const res = await fetch(WORKER_URL, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
+                if (!res.ok) throw new Error("Worker 响应错误");
+                const data = await res.json();
+                
+                renderAndCalculate(data.usdt_sources || [], 'usdt_sources', 'u', RATE_GROUPS.usdt, 'u_calc_log');
+                renderAndCalculate(data.usd_sources || [], 'usd_sources', 'usd', RATE_GROUPS.usd, 'usd_calc_log');
+                
+                // 👇 === 新增：将健康探针面板代码加在这里 === 👇
+                if (data.node_health) {
+                    let healthHtml = '<strong style="color:var(--blue); display:block; margin-bottom:5px;">🤖 集群状态监控:</strong>';
+                    data.node_health.forEach(n => {
+                        let errText = n.error ? `<span style="color:var(--red); font-size:10px;"><br>↳ ${n.error}</span>` : '';
+                        let lat = (n.latency != null) ? `⚡${n.latency}ms` : '';
+                        healthHtml += `<div style="margin-bottom: 3px;">${n.status} ${n.id} ${lat} ${errText}</div>`;
+                    });
+                    if (data.missing_ids && data.missing_ids.length) {
+                        healthHtml += `<div style="margin-top:5px; color:var(--red); font-weight:bold;">⚠️ 数据源轮空(所有节点都没取到): ${data.missing_ids.join(', ')}</div>`;
+                    }
+                    const healthLog = document.getElementById('node_health_log');
+                    healthLog.innerHTML = healthHtml;
+                    healthLog.style.display = 'block';
+                }
+                // 👆 === 新增结束 === 👆
+                
+                const now = new Date();
+                const timeStr = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0') + ":" + now.getSeconds().toString().padStart(2, '0');
+                timeTag.innerText = `✅ 扫描完成: ${timeStr}`;
+                
+                calcAll(); 
+
+            } catch(e) {
+                timeTag.innerText = `❌ ${e.name === 'AbortError' ? '请求超时，请重试' : '网络雷达发生拦截异常'}`;
+            } finally {
+                isFetchingRates = false;
+                btn.disabled = false;
+                btn.querySelector('span').innerText = "🔄 刷新汇率雷达";
+            }
+        }
+    </script>
+</body>
+</html>

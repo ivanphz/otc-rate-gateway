@@ -1,0 +1,11 @@
+{
+  "name": "otc-spider-api",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server-entry.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

@@ -1,0 +1,8 @@
+services:
+  otc-spider-api:
+    build: .
+    image: ghcr.io/OWNER/otc-rate-suite-spider:latest  # 也可直接拉镜像，替换 OWNER
+    container_name: otc-spider-api
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000"  # 仅本地，前面用 Caddy/Nginx 套域名+TLS

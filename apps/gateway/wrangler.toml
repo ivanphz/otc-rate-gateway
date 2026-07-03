@@ -1,0 +1,8 @@
+name = "otc-gateway-api"
+main = "src/worker.js"
+compatibility_date = "2026-06-10"
+
+# ⚠️ 私人节点地址不要写在这里！在 CF 后台 Settings > Variables > 添加 NODES(加密变量)，
+#    或本地执行： npx wrangler secret put NODES
+#    NODES 值示例(JSON 字符串)：
+#    [{"id":"🇯🇵 VPS-Tokyo","url":"https://your-vps.example.com"},{"id":"☁️ CF Worker","url":"https://your-spider.example.com"}]
