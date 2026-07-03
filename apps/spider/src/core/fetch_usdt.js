@@ -114,7 +114,13 @@ export const getUsdtRates = async () => {
         // 未在官方文档中记录的内部接口，字段名未经真实数据验证，先上线观测。
         makeReq(
             "https://www.htx.com/-/x/otc/v1/data/trade-market?coinId=2&currency=1&tradeType=sell&currPage=1&payMethod=0&acceptOrder=0&country=&blockType=general&online=1&range=0&amount=",
-            { headers: { "User-Agent": "Mozilla/5.0" } },
+            {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Origin": "https://www.htx.com",
+                    "Referer": "https://www.htx.com/"
+                }
+            },
             { id: "htx_buy", source: "HTX [我买U/卖方盘口]", role: "price" },
             d => {
                 let rawOrders = d.data || [];
@@ -149,7 +155,7 @@ export const getUsdtRates = async () => {
             "https://api2.bybit.com/fiat/otc/item/online",
             {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+                headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Origin": "https://www.bybit.com", "Referer": "https://www.bybit.com/" },
                 body: JSON.stringify({
                     userId: "", tokenId: "USDT", currencyId: "CNY", payment: [],
                     side: "1", size: String(STRATEGY_CONFIG.BYBIT_FETCH_LIMIT || 20),
