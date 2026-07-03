@@ -1,0 +1,23 @@
+name: Deploy Spider Worker (otc-spider-api)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/spider/src/**'
+      - 'apps/spider/wrangler.toml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          workingDirectory: 'apps/spider'
+          command: deploy

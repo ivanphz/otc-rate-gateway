@@ -1,0 +1,22 @@
+name: Deploy Gateway (otc-gateway-api)
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'apps/gateway/**' ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          workingDirectory: 'apps/gateway'
+          command: deploy
+# 注意：NODES 是 Worker 运行时变量，只需在 CF 后台设置一次，CI 不碰它。

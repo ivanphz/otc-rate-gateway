@@ -1,0 +1,24 @@
+name: Deploy Web (otc-calc-web Pages)
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'apps/web/**' ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate config.js (inject gateway URL from secret)
+        run: |
+          cp apps/web/config.example.js apps/web/config.js
+          sed -i "s|__WORKER_URL__|${{ secrets.GATEWAY_URL }}|g" apps/web/config.js
+      - name: Deploy Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          wranglerVersion: '4'
+          command: pages deploy apps/web --project-name=otc-calc-web
