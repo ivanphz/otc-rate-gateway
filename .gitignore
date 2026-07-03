@@ -1,0 +1,11 @@
+# —— 含私人地址/密钥，绝不进仓库 ——
+apps/web/config.js
+.dev.vars
+apps/gateway/.dev.vars
+apps/spider/.dev.vars
+
+# 依赖与杂项
+node_modules/
+.wrangler/
+*.log
+.DS_Store
