@@ -18,6 +18,13 @@
         .stepper-group { display: flex; align-items: center; gap: 5px; }
         .btn-step { width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #ddd; background: #f0f2f5; border-radius: 6px; font-size: 18px; font-weight: bold; color: #333; cursor: pointer; line-height: 1; padding: 0; }
         .btn-step:active { background: #cbd5e0; }
+        .cost-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 10px; background: #fff4e6; border: 1px dashed #ffa94d; border-radius: 8px; font-size: 13px; flex-wrap: wrap; }
+        .cost-label { font-weight: bold; color: #d9480f; white-space: nowrap; }
+        .cost-input { width: 85px; padding: 5px; font-size: 15px; text-align: center; border: 1px solid #ffa94d; border-radius: 5px; font-weight: bold; background: #fff; }
+        .btn-cost-save { background: #fd7e14; color: #fff; border: none; padding: 6px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+        .btn-cost-save:disabled { opacity: 0.5; }
+        .cost-status { font-size: 11px; color: #868e96; }
+        .cost-profit-line { margin-top: 8px; padding: 6px 10px; border-radius: 6px; font-size: 13px; font-weight: bold; background: #fff4e6; color: #d9480f; display: none; }
         .sys-rate-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; }
         .btn-restore { background: #e2e8f0; border: none; padding: 2px 6px; border-radius: 4px; font-size: 10px; color: #4a5568; cursor: pointer; transition: 0.2s;}
         .btn-restore:hover { background: #cbd5e0; }
@@ -143,6 +150,12 @@
         <div id="card_sell_u" class="card">
             <div class="card-header head-sell">🔴 卖出U <span class="header-sub">| 我出 U，收 RMB</span></div>
             <div class="card-body">
+                <div class="cost-row">
+                    <span class="cost-label">📌 我的U成本</span>
+                    <input type="number" step="0.001" min="0" id="cost_price" class="cost-input" placeholder="未设置" onfocus="this.select()" oninput="calcAll()">
+                    <button class="btn-cost-save" id="cost_save_btn" onclick="saveCostPrice()">💾 保存</button>
+                    <span id="cost_status" class="cost-status"></span>
+                </div>
                 <div class="input-row">
                     <div class="field"><label>固定出U数量</label><input type="number" step="1" min="0" id="c1_amt" onfocus="this.select()" oninput="calcAll()"></div>
                     <div class="field"><label>目标收取金额(RMB)</label><input type="number" step="1" min="0" id="c1_target" onfocus="this.select()" oninput="calcAll()"></div>
@@ -153,6 +166,7 @@
                         <div class="stat-box"><label>实际汇率</label><div id="c1_actual" class="val">-</div></div>
                         <div class="stat-box"><label>净利润(RMB)</label><div id="c1_profit" class="val profit">-</div></div>
                     </div>
+                    <div id="c1_cost_line" class="cost-profit-line"></div>
                     <div class="ref-area"><div class="ref-title">参考报价 (按目标利润率)</div><div class="ref-table" id="c1_refs"></div></div>
                     <div id="c1_hint" class="hint-box"></div>
                 </div>
@@ -191,6 +205,7 @@
                         <div class="stat-box"><label>实际汇率</label><div id="c3_actual" class="val">-</div></div>
                         <div class="stat-box"><label>净利润(RMB)</label><div id="c3_profit" class="val profit">-</div></div>
                     </div>
+                    <div id="c3_cost_line" class="cost-profit-line"></div>
                     <div class="ref-area"><div class="ref-title">参考报价 (按目标利润率)</div><div class="ref-table" id="c3_refs"></div></div>
                     <div id="c3_hint" class="hint-box"></div>
                 </div>
@@ -236,8 +251,48 @@
                 const card = document.getElementById(id);
                 if (card) grid.appendChild(card);
             });
-            if (WORKER_URL) fetchRates();
+            if (WORKER_URL) { fetchRates(); loadCostPrice(); }
         });
+
+        // ===== 💰 成本价 (Phase 0: 手工维护单价, 存网关 KV) =====
+        async function loadCostPrice() {
+            const statusEl = document.getElementById('cost_status');
+            try {
+                const res = await fetch(WORKER_URL + '/cost');
+                const data = await res.json();
+                if (data.cost_price > 0) {
+                    document.getElementById('cost_price').value = data.cost_price;
+                    statusEl.innerText = `已存 ${new Date(data.updated_at).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'})}`;
+                } else {
+                    statusEl.innerText = '';
+                }
+                calcAll();
+            } catch (e) {
+                statusEl.innerText = '读取失败';
+            }
+        }
+
+        async function saveCostPrice() {
+            const btn = document.getElementById('cost_save_btn');
+            const statusEl = document.getElementById('cost_status');
+            const val = parseFloat(document.getElementById('cost_price').value) || null;
+            btn.disabled = true;
+            statusEl.innerText = '保存中…';
+            try {
+                const res = await fetch(WORKER_URL + '/cost', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cost_price: val })
+                });
+                const data = await res.json();
+                if (data.error) { statusEl.innerText = '❌ ' + data.error; }
+                else if (data.cost_price > 0) { statusEl.innerText = '✅ 已保存'; }
+                else { statusEl.innerText = '已清除'; }
+            } catch (e) {
+                statusEl.innerText = '❌ 保存失败';
+            }
+            btn.disabled = false;
+        }
 
         function restoreRate(type) {
             if (type === 'u' && globalSysURate > 0) {
@@ -329,6 +384,24 @@
                         refHtml += `<div class="ref-item"><span>${p*100}%利润</span><strong>${price.toFixed(2)}</strong></div>`;
                     });
                     refBox.innerHTML = refHtml;
+                }
+
+                // 💰 成本浮盈：只挂在 卖出U / 代收RMB 两个"U流出"模块上
+                const costLine = document.getElementById(conf.id + '_cost_line');
+                if (costLine) {
+                    const costPrice = Math.abs(parseFloat(document.getElementById('cost_price').value) || 0);
+                    if (costPrice > 0 && amt > 0 && target > 0) {
+                        let costProfit = 0;
+                        if (conf.type === 'sell_u') costProfit = target - amt * costPrice;      // 收到的RMB - 付出U的成本
+                        if (conf.type === 'recv_rmb') costProfit = amt - target * costPrice;    // 收到的RMB - 付出U的成本
+                        const sign = costProfit >= 0 ? '+' : '';
+                        costLine.style.display = 'block';
+                        costLine.innerText = `📌 对比我的成本(${costPrice.toFixed(3)}): ${sign}${costProfit.toFixed(2)} RMB`;
+                        costLine.style.background = costProfit >= 0 ? '#ebfbee' : '#ffe3e3';
+                        costLine.style.color = costProfit >= 0 ? '#2b8a3e' : '#c92a2a';
+                    } else {
+                        costLine.style.display = 'none';
+                    }
                 }
 
                 if (!amt || !target || !myURate) {
