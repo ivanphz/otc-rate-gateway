@@ -2,6 +2,8 @@
 
 一个仓库,4 个部署目标。U 价计算器全套:抓取端 → 智能网关 → 前端计算器。
 
+> 📖 改代码前先读 `docs/DESIGN.md`(架构与设计决策) 和 `docs/ROADMAP.md`(迭代方向与预留接口)。
+
 ```
 otc-rate-suite/
 ├── apps/
@@ -50,17 +52,30 @@ otc-rate-suite/
 ## 一次性配置（只做一次）
 
 **1. GitHub 仓库 → Settings → Secrets and variables → Actions，添加:**
+
+Secrets 标签页(加密，敏感凭证):
 - `CF_API_TOKEN`　你的 Cloudflare API Token
 - `CF_ACCOUNT_ID`　你的 Cloudflare Account ID
+
+Variables 标签页(明文即可，因为它本来就会出现在浏览器可见的 config.js 里):
 - `GATEWAY_URL`　网关对外地址(前端会调用它)，如 `https://otc-gateway-api.example.com`
 
-**2. 网关的私人节点地址(你的 VPS)配在 Cloudflare,不进 GitHub:**
-- CF 后台 → Workers `otc-gateway-api` → Settings → Variables → 添加 `NODES`(建议加密)
-- 值是 JSON 字符串:
+**2. 网关的私人节点地址(你的 VPS)配在 Cloudflare 后台的 Variables,不进 GitHub:**
+- CF 后台 → Workers `otc-gateway-api` → 设置 → 变量和密钥 → 添加变量 → 名称填 `NODES`,类型选**明文(Variable)**即可(不用加密)
+- 值是 JSON 字符串(建议压缩成一行,不要带换行):
   ```json
   [{"id":"🇯🇵 VPS-Tokyo","url":"https://你的vps域名"},{"id":"☁️ CF Worker","url":"https://otc-spider-api.你的域名"}]
   ```
-- 或本地执行 `cd apps/gateway && npx wrangler secret put NODES`
+- `apps/gateway/wrangler.toml` 里已经加了 `keep_vars = true`，这一步**只用做一次**：
+  之后不管 GitHub Actions 怎么部署这个网关，后台设的 `NODES` 都不会再被冲掉了。
+  （如果没有这行配置，Wrangler 每次部署都会把 wrangler.toml 里没声明的后台变量全部清空——你之前遇到的就是这个问题。）
+- 以后要改节点地址，直接去 CF 后台改这个 Variable 的值就行，不用碰代码、不用重新部署。
+
+**3. 成本价功能的 KV（一次性配置，不用这个功能可跳过）:**
+- CF 后台 → 存储和数据库 → KV → 创建命名空间（名字随意，如 `otc-data`），复制它的「命名空间 ID」
+- 打开 `apps/gateway/wrangler.toml`，把 `[[kv_namespaces]]` 那三行的注释去掉、粘贴 ID，推送部署
+- ⚠️ 绑定必须写在 wrangler.toml：`keep_vars` 只保得住变量，保不住后台手动加的 KV 绑定（CI 部署会清掉后台加的绑定）
+- 命名空间 ID 不是敏感信息，可放心进公开仓库
 
 > 为什么分两处：`NODES` 是网关**运行时**才用(GitHub Secret 只在构建时存在，进不了运行时)，
 > 而 `GATEWAY_URL` 是构建前端时写进 config.js 的。这样你的 VPS 地址永远不出现在仓库里。
