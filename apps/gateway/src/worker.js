@@ -23,7 +23,8 @@ export default {
     // ⚠️ 无鉴权的前提是这里只存"一个价格数字"。要存交易明细必须先加鉴权。
     // ===========================================================
     const reqUrl = new URL(request.url);
-    if (reqUrl.pathname === "/cost") {
+    const reqPath = reqUrl.pathname.replace(/\/{2,}/g, "/"); // 容错：把 //cost 归一成 /cost
+    if (reqPath === "/cost") {
       if (!env.OTC_KV) {
         return jsonResp({ error: "KV 未绑定。请在 apps/gateway/wrangler.toml 里配置 [[kv_namespaces]] OTC_KV 后重新部署。" }, 500);
       }
