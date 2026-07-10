@@ -18,13 +18,35 @@
         .stepper-group { display: flex; align-items: center; gap: 5px; }
         .btn-step { width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #ddd; background: #f0f2f5; border-radius: 6px; font-size: 18px; font-weight: bold; color: #333; cursor: pointer; line-height: 1; padding: 0; }
         .btn-step:active { background: #cbd5e0; }
-        .cost-group .rate-main-row { gap: 8px; }
-        .cost-label-top { font-weight: bold; color: #d9480f; white-space: nowrap; font-size: 13px; }
-        .cost-input-top { width: 72px; background: #fff4e6; border-color: #ffa94d; }
-        .btn-cost-save { background: #fd7e14; color: #fff; border: none; width: 34px; height: 34px; flex-shrink: 0; border-radius: 6px; font-size: 15px; cursor: pointer; padding: 0; }
-        .btn-cost-save:disabled { opacity: 0.5; }
-        .cost-status { font-size: 11px; color: #868e96; }
+        .cost-panel { max-width: 1400px; margin: 0 auto 15px; background: #fff; border-radius: 12px; padding: 12px 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .cost-panel-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+        .cost-label-top { font-weight: bold; color: #d9480f; font-size: 14px; }
+        .cost-status { font-size: 12px; color: #868e96; }
+        .cost-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .cost-slot { border: 2px solid #e9ecef; border-radius: 10px; padding: 10px; cursor: pointer; transition: all .15s; background: #fafafa; }
+        .cost-slot:hover { border-color: #ffc078; }
+        .cost-slot.active { border-color: #fd7e14; background: #fff4e6; box-shadow: 0 0 0 2px rgba(253,126,20,0.15); }
+        .cost-slot-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+        .cost-radio { width: 16px; height: 16px; flex-shrink: 0; border-radius: 50%; border: 2px solid #adb5bd; }
+        .cost-slot.active .cost-radio { border-color: #fd7e14; background: radial-gradient(#fd7e14 40%, transparent 45%); }
+        .cost-slot-title { font-size: 12px; font-weight: bold; color: #495057; }
+        .cost-slot.active .cost-slot-title { color: #d9480f; }
+        .cost-slot-tag { margin-left: auto; font-size: 11px; color: #868e96; }
+        .cost-price-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+        .cost-price-input { width: 100%; padding: 6px; font-size: 16px; font-weight: bold; text-align: center; border: 1px solid #ffa94d; border-radius: 6px; background: #fff; }
+        .cost-note-input { width: 100%; padding: 5px 6px; font-size: 12px; border: 1px solid #dee2e6; border-radius: 6px; box-sizing: border-box; margin-bottom: 6px; }
+        .cost-slot-btns { display: flex; gap: 6px; }
+        .cost-btn { flex: 1; border: none; padding: 5px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+        .cost-btn-save { background: #fd7e14; color: #fff; }
+        .cost-btn-clear { background: #f1f3f5; color: #868e96; }
+        .cost-btn:disabled { opacity: .5; }
         .cost-profit-line { margin-top: 8px; padding: 6px 10px; border-radius: 6px; font-size: 13px; font-weight: bold; background: #fff4e6; color: #d9480f; display: none; }
+        /* 手机端：三槽竖排、更紧凑 */
+        @media (max-width: 700px) {
+            .cost-slots { grid-template-columns: 1fr; gap: 8px; }
+            .cost-slot { padding: 8px; }
+            .cost-panel { padding: 10px; }
+        }
         .sys-rate-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; }
         .btn-restore { background: #e2e8f0; border: none; padding: 2px 6px; border-radius: 4px; font-size: 10px; color: #4a5568; cursor: pointer; transition: 0.2s;}
         .btn-restore:hover { background: #cbd5e0; }
@@ -122,19 +144,16 @@
                 <button class="btn-restore" onclick="restoreRate('usd')">↺ 还原</button>
             </div>
         </div>
-        <div class="rate-control-group cost-group">
-            <div class="rate-main-row">
-                <span class="cost-label-top">📌 我的U成本</span>
-                <span class="stepper-group">
-                    <input type="number" step="0.01" min="0" id="cost_price" class="rate-input cost-input-top" placeholder="未设置" onfocus="this.select()" oninput="calcAll()" onblur="snapCost()">
-                    <button class="btn-cost-save" id="cost_save_btn" onclick="saveCostPrice()">💾</button>
-                </span>
-            </div>
-            <div class="sys-rate-row">
-                <span id="cost_status" class="cost-status">影响 卖出U / 代收RMB 的浮盈</span>
-            </div>
-        </div>
     </div>
+
+    <div class="cost-panel">
+        <div class="cost-panel-head">
+            <span class="cost-label-top">📌 我的U成本（3 组，点选一个生效）</span>
+            <span id="cost_status" class="cost-status"></span>
+        </div>
+        <div class="cost-slots" id="cost_slots"><!-- JS 渲染 3 个槽 --></div>
+    </div>
+
 
     <div class="info-section">
         <div class="info-grid">
@@ -266,44 +285,124 @@
             if (WORKER_URL) { fetchRates(); loadCostPrice(); }
         });
 
-        // ===== 💰 成本价 (Phase 0: 手工维护单价, 存网关 KV) =====
-        async function loadCostPrice() {
-            const statusEl = document.getElementById('cost_status');
-            try {
-                const res = await fetch(API + '/cost', { cache: 'no-store' });
-                const data = await res.json();
-                if (data.cost_price > 0) {
-                    document.getElementById('cost_price').value = data.cost_price;
-                    statusEl.innerText = `已存 ${new Date(data.updated_at).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'})}`;
-                } else {
-                    statusEl.innerText = '';
-                }
-                calcAll();
-            } catch (e) {
-                statusEl.innerText = '读取失败';
+        // ===== 💰 我的U成本 (3 组，手动点选生效，存网关 KV) =====
+        const SLOT_COUNT = 3;
+        let costState = { slots: [], active: 0 };
+
+        function emptySlot() { return { price: null, updated_at: null, note: "" }; }
+        function normalizeCostState(d) {
+            const slots = [];
+            for (let i = 0; i < SLOT_COUNT; i++) {
+                const s = (d && Array.isArray(d.slots)) ? d.slots[i] : null;
+                slots.push(s ? { price: s.price ?? null, updated_at: s.updated_at ?? null, note: s.note || "" } : emptySlot());
             }
+            let active = (d && Number.isInteger(d.active)) ? d.active : 0;
+            if (active < 0 || active >= SLOT_COUNT) active = 0;
+            return { slots, active };
         }
 
-        async function saveCostPrice() {
-            const btn = document.getElementById('cost_save_btn');
+        function getActiveCost() {
+            const s = costState.slots[costState.active];
+            return (s && s.price > 0) ? s.price : 0;
+        }
+
+        function fmtDate(ts) {
+            if (!ts) return '未保存';
+            return new Date(ts).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function renderCostSlots() {
+            const wrap = document.getElementById('cost_slots');
+            wrap.innerHTML = costState.slots.map((s, i) => {
+                const active = i === costState.active;
+                const priceVal = (s.price > 0) ? s.price : '';
+                return `
+                <div class="cost-slot ${active ? 'active' : ''}" onclick="selectSlot(${i})">
+                    <div class="cost-slot-top">
+                        <span class="cost-radio"></span>
+                        <span class="cost-slot-title">第 ${i + 1} 组${active ? '（生效中）' : ''}</span>
+                        <span class="cost-slot-tag">${fmtDate(s.updated_at)}</span>
+                    </div>
+                    <div class="cost-price-row">
+                        <input type="number" step="0.01" min="0" id="cost_in_${i}" class="cost-price-input"
+                               value="${priceVal}" placeholder="未设置"
+                               onclick="event.stopPropagation()" onfocus="this.select()"
+                               onblur="snapSlotInput(${i})">
+                    </div>
+                    <input type="text" id="cost_note_${i}" class="cost-note-input" maxlength="20"
+                           value="${(s.note || '').replace(/"/g, '&quot;')}" placeholder="备注（可选，如 100万那批）"
+                           onclick="event.stopPropagation()">
+                    <div class="cost-slot-btns">
+                        <button class="cost-btn cost-btn-save" onclick="event.stopPropagation(); saveSlot(${i})">💾 保存</button>
+                        <button class="cost-btn cost-btn-clear" onclick="event.stopPropagation(); clearSlot(${i})">清除</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function snapSlotInput(i) {
+            const el = document.getElementById('cost_in_' + i);
+            const v = parseFloat(el.value);
+            if (v > 0) el.value = snap2(v);
+        }
+
+        async function pushCostState(statusMsg) {
             const statusEl = document.getElementById('cost_status');
-            const val = parseFloat(document.getElementById('cost_price').value) || null;
-            btn.disabled = true;
             statusEl.innerText = '保存中…';
             try {
                 const res = await fetch(API + '/cost', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ cost_price: val })
+                    body: JSON.stringify(costState)
                 });
                 const data = await res.json();
-                if (data.error) { statusEl.innerText = '❌ ' + data.error; }
-                else if (data.cost_price > 0) { statusEl.innerText = '✅ 已保存'; }
-                else { statusEl.innerText = '已清除'; }
+                if (data.error) { statusEl.innerText = '❌ ' + data.error; return; }
+                costState = normalizeCostState(data);
+                renderCostSlots();
+                calcAll();
+                statusEl.innerText = statusMsg || '✅ 已保存';
             } catch (e) {
                 statusEl.innerText = '❌ 保存失败';
             }
-            btn.disabled = false;
+        }
+
+        function selectSlot(i) {
+            if (costState.active === i) return;
+            costState.active = i;
+            renderCostSlots();
+            calcAll();
+            pushCostState('✅ 已切换生效组');
+        }
+
+        function saveSlot(i) {
+            const price = parseFloat(document.getElementById('cost_in_' + i).value) || null;
+            const note = document.getElementById('cost_note_' + i).value.trim();
+            costState.slots[i] = {
+                price: price,
+                updated_at: price > 0 ? Date.now() : null,
+                note: note
+            };
+            costState.active = i; // 保存哪组就顺手让它生效
+            pushCostState(price > 0 ? `✅ 第 ${i + 1} 组已保存` : `已清空第 ${i + 1} 组`);
+        }
+
+        function clearSlot(i) {
+            costState.slots[i] = emptySlot();
+            pushCostState(`已清除第 ${i + 1} 组`);
+        }
+
+        async function loadCostPrice() {
+            const statusEl = document.getElementById('cost_status');
+            try {
+                const res = await fetch(API + '/cost', { cache: 'no-store' });
+                const data = await res.json();
+                costState = normalizeCostState(data);
+                renderCostSlots();
+                calcAll();
+                statusEl.innerText = '';
+            } catch (e) {
+                statusEl.innerText = '读取失败';
+            }
         }
 
         function restoreRate(type) {
@@ -327,13 +426,6 @@
             if (cents < 0) cents = 0;
             el.value = (cents / 100).toFixed(2);
             calcAll();
-        }
-
-        // 成本价失焦时吸附成两位小数
-        function snapCost() {
-            const el = document.getElementById('cost_price');
-            const v = parseFloat(el.value);
-            if (v > 0) el.value = snap2(v);
         }
 
         function calculateGroupedAverage(dataArr, configGroups) {
@@ -409,14 +501,14 @@
                 // 💰 成本浮盈：只挂在 卖出U / 代收RMB 两个"U流出"模块上
                 const costLine = document.getElementById(conf.id + '_cost_line');
                 if (costLine) {
-                    const costPrice = Math.abs(parseFloat(document.getElementById('cost_price').value) || 0);
+                    const costPrice = getActiveCost();
                     if (costPrice > 0 && amt > 0 && target > 0) {
                         let costProfit = 0;
                         if (conf.type === 'sell_u') costProfit = target - amt * costPrice;      // 收到的RMB - 付出U的成本
                         if (conf.type === 'recv_rmb') costProfit = amt - target * costPrice;    // 收到的RMB - 付出U的成本
                         const sign = costProfit >= 0 ? '+' : '';
                         costLine.style.display = 'block';
-                        costLine.innerText = `📌 对比我的成本(${fmtRate(costPrice)}): ${sign}${costProfit.toFixed(2)} RMB`;
+                        costLine.innerText = `📌 对比成本(第${costState.active + 1}组 ${fmtRate(costPrice)}): ${sign}${costProfit.toFixed(2)} RMB`;
                         costLine.style.background = costProfit >= 0 ? '#ebfbee' : '#ffe3e3';
                         costLine.style.color = costProfit >= 0 ? '#2b8a3e' : '#c92a2a';
                     } else {
