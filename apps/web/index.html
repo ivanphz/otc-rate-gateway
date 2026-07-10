@@ -241,6 +241,7 @@
     <script>
         const CONFIG = window.APP_CONFIG || {};
         const WORKER_URL = CONFIG.WORKER_URL || "";
+        const API = WORKER_URL.replace(/\/+$/, ""); // 去掉结尾斜杠，避免拼出 //cost
         const MODULE_ORDER = CONFIG.MODULE_ORDER || ['card_sell_u', 'card_buy_u', 'card_recv_rmb', 'card_pay_rmb'];
         const RATE_GROUPS = CONFIG.RATE_GROUPS || { usd: [], usdt: [] };
         // 👇 新增这行，读取外部设定的 5% (如果没有设定则兜底默认 0.05)
@@ -269,7 +270,7 @@
         async function loadCostPrice() {
             const statusEl = document.getElementById('cost_status');
             try {
-                const res = await fetch(WORKER_URL + '/cost', { cache: 'no-store' });
+                const res = await fetch(API + '/cost', { cache: 'no-store' });
                 const data = await res.json();
                 if (data.cost_price > 0) {
                     document.getElementById('cost_price').value = data.cost_price;
@@ -290,7 +291,7 @@
             btn.disabled = true;
             statusEl.innerText = '保存中…';
             try {
-                const res = await fetch(WORKER_URL + '/cost', {
+                const res = await fetch(API + '/cost', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cost_price: val })
@@ -578,7 +579,7 @@
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 15000);
-                const res = await fetch(WORKER_URL, { signal: controller.signal });
+                const res = await fetch(API, { signal: controller.signal });
                 clearTimeout(timeoutId);
                 
                 if (!res.ok) throw new Error("Worker 响应错误");
