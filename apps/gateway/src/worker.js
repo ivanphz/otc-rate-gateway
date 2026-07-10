@@ -15,7 +15,7 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
     const jsonResp = (obj, status = 200) =>
-      new Response(JSON.stringify(obj, null, 2), { status, headers: { "Content-Type": "application/json", ...cors } });
+      new Response(JSON.stringify(obj, null, 2), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...cors } });
 
     // ===========================================================
     // 💰 成本价接口 /cost  (Phase 0：手工维护，存 KV，无鉴权)
