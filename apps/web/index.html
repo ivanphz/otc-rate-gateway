@@ -269,7 +269,7 @@
         async function loadCostPrice() {
             const statusEl = document.getElementById('cost_status');
             try {
-                const res = await fetch(WORKER_URL + '/cost');
+                const res = await fetch(WORKER_URL + '/cost', { cache: 'no-store' });
                 const data = await res.json();
                 if (data.cost_price > 0) {
                     document.getElementById('cost_price').value = data.cost_price;
