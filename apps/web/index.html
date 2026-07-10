@@ -18,10 +18,10 @@
         .stepper-group { display: flex; align-items: center; gap: 5px; }
         .btn-step { width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #ddd; background: #f0f2f5; border-radius: 6px; font-size: 18px; font-weight: bold; color: #333; cursor: pointer; line-height: 1; padding: 0; }
         .btn-step:active { background: #cbd5e0; }
-        .cost-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 10px; background: #fff4e6; border: 1px dashed #ffa94d; border-radius: 8px; font-size: 13px; flex-wrap: wrap; }
-        .cost-label { font-weight: bold; color: #d9480f; white-space: nowrap; }
-        .cost-input { width: 85px; padding: 5px; font-size: 15px; text-align: center; border: 1px solid #ffa94d; border-radius: 5px; font-weight: bold; background: #fff; }
-        .btn-cost-save { background: #fd7e14; color: #fff; border: none; padding: 6px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+        .cost-group .rate-main-row { gap: 8px; }
+        .cost-label-top { font-weight: bold; color: #d9480f; white-space: nowrap; font-size: 13px; }
+        .cost-input-top { width: 72px; background: #fff4e6; border-color: #ffa94d; }
+        .btn-cost-save { background: #fd7e14; color: #fff; border: none; width: 34px; height: 34px; flex-shrink: 0; border-radius: 6px; font-size: 15px; cursor: pointer; padding: 0; }
         .btn-cost-save:disabled { opacity: 0.5; }
         .cost-status { font-size: 11px; color: #868e96; }
         .cost-profit-line { margin-top: 8px; padding: 6px 10px; border-radius: 6px; font-size: 13px; font-weight: bold; background: #fff4e6; color: #d9480f; display: none; }
@@ -122,6 +122,18 @@
                 <button class="btn-restore" onclick="restoreRate('usd')">↺ 还原</button>
             </div>
         </div>
+        <div class="rate-control-group cost-group">
+            <div class="rate-main-row">
+                <span class="cost-label-top">📌 我的U成本</span>
+                <span class="stepper-group">
+                    <input type="number" step="0.01" min="0" id="cost_price" class="rate-input cost-input-top" placeholder="未设置" onfocus="this.select()" oninput="calcAll()" onblur="snapCost()">
+                    <button class="btn-cost-save" id="cost_save_btn" onclick="saveCostPrice()">💾</button>
+                </span>
+            </div>
+            <div class="sys-rate-row">
+                <span id="cost_status" class="cost-status">影响 卖出U / 代收RMB 的浮盈</span>
+            </div>
+        </div>
     </div>
 
     <div class="info-section">
@@ -150,12 +162,6 @@
         <div id="card_sell_u" class="card">
             <div class="card-header head-sell">🔴 卖出U <span class="header-sub">| 我出 U，收 RMB</span></div>
             <div class="card-body">
-                <div class="cost-row">
-                    <span class="cost-label">📌 我的U成本</span>
-                    <input type="number" step="0.001" min="0" id="cost_price" class="cost-input" placeholder="未设置" onfocus="this.select()" oninput="calcAll()">
-                    <button class="btn-cost-save" id="cost_save_btn" onclick="saveCostPrice()">💾 保存</button>
-                    <span id="cost_status" class="cost-status"></span>
-                </div>
                 <div class="input-row">
                     <div class="field"><label>固定出U数量</label><input type="number" step="1" min="0" id="c1_amt" onfocus="this.select()" oninput="calcAll()"></div>
                     <div class="field"><label>目标收取金额(RMB)</label><input type="number" step="1" min="0" id="c1_target" onfocus="this.select()" oninput="calcAll()"></div>
@@ -244,6 +250,11 @@
         let globalSysURate = 0;   
         let globalSysUsdRate = 0; 
 
+        // 雷达结果显示规则：最多保留三位小数，去掉尾部多余的 0（6.800→6.8，6.735→6.735）
+        function fmtRate(x) { return parseFloat(Number(x).toFixed(3)).toString(); }
+        // 手工微调 / 成本价：一律吸附成两位小数
+        function snap2(x) { return (Math.round(Number(x) * 100) / 100).toFixed(2); }
+
         window.addEventListener('DOMContentLoaded', () => {
             if (!WORKER_URL) alert("⚠️ 请先在 config.js 中配置 WORKER_URL！");
             const grid = document.getElementById('main_grid');
@@ -296,9 +307,9 @@
 
         function restoreRate(type) {
             if (type === 'u' && globalSysURate > 0) {
-                document.getElementById('u_rate').value = globalSysURate.toFixed(3);
+                document.getElementById('u_rate').value = fmtRate(globalSysURate);
             } else if (type === 'usd' && globalSysUsdRate > 0) {
-                document.getElementById('usd_rate').value = globalSysUsdRate.toFixed(3);
+                document.getElementById('usd_rate').value = fmtRate(globalSysUsdRate);
             }
             calcAll();
         }
@@ -310,10 +321,18 @@
             let base = parseFloat(el.value);
             if (!(base > 0)) base = sysRate;
             if (!(base > 0)) return;
-            let next = Math.round((base + delta) * 1000) / 1000;
-            if (next < 0) next = 0;
-            el.value = next.toFixed(3);
+            // 手工微调 → 吸附到两位小数网格上按 0.01 步进
+            let cents = Math.round(base * 100) + Math.round(delta * 100);
+            if (cents < 0) cents = 0;
+            el.value = (cents / 100).toFixed(2);
             calcAll();
+        }
+
+        // 成本价失焦时吸附成两位小数
+        function snapCost() {
+            const el = document.getElementById('cost_price');
+            const v = parseFloat(el.value);
+            if (v > 0) el.value = snap2(v);
         }
 
         function calculateGroupedAverage(dataArr, configGroups) {
@@ -396,7 +415,7 @@
                         if (conf.type === 'recv_rmb') costProfit = amt - target * costPrice;    // 收到的RMB - 付出U的成本
                         const sign = costProfit >= 0 ? '+' : '';
                         costLine.style.display = 'block';
-                        costLine.innerText = `📌 对比我的成本(${costPrice.toFixed(3)}): ${sign}${costProfit.toFixed(2)} RMB`;
+                        costLine.innerText = `📌 对比我的成本(${fmtRate(costPrice)}): ${sign}${costProfit.toFixed(2)} RMB`;
                         costLine.style.background = costProfit >= 0 ? '#ebfbee' : '#ffe3e3';
                         costLine.style.color = costProfit >= 0 ? '#2b8a3e' : '#c92a2a';
                     } else {
@@ -542,12 +561,12 @@
                     let avgRate = engineResult.finalAvg;
                     if (type === 'u') {
                         globalSysURate = avgRate;
-                        document.getElementById('sys_u_display').innerText = `👑 系统均价: ${avgRate.toFixed(3)}`;
-                        document.getElementById('u_rate').value = avgRate.toFixed(3);
+                        document.getElementById('sys_u_display').innerText = `👑 系统均价: ${fmtRate(avgRate)}`;
+                        document.getElementById('u_rate').value = fmtRate(avgRate);
                     } else if (type === 'usd') {
                         globalSysUsdRate = avgRate;
-                        document.getElementById('sys_usd_display').innerText = `👑 系统均价: ${avgRate.toFixed(3)}`;
-                        document.getElementById('usd_rate').value = avgRate.toFixed(3);
+                        document.getElementById('sys_usd_display').innerText = `👑 系统均价: ${fmtRate(avgRate)}`;
+                        document.getElementById('usd_rate').value = fmtRate(avgRate);
                     }
                     
                     const logEl = document.getElementById(logElementId);
