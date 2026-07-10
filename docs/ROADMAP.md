@@ -62,9 +62,13 @@ otc-rate-suite（本仓库）           ledger（未来独立仓库）
 ### 3.1 成本价供数契约（ledger 必须实现）
 ```
 GET /cost
-→ { "cost_price": 6.731, "updated_at": 1783066423811, "source": "ledger" }
+→ { "cost_price": 6.731, "updated_at": 1783..., "source": "ledger" }
 ```
-与本仓库网关现有 `/cost` **形状完全一致**，前端才能零改动切换。
+说明：Phase 0 的手工模式是"3 组手动点选"（形状见 DESIGN.md 3.3，`{slots, active, source}`）。
+ledger 算的是**单一加权成本**，所以 Phase 3 接入时二选一：
+- (a) ledger 把加权成本塞进 `slots[0]`、`active=0`，其余两组留给你手工备注；或
+- (b) 前端加"成本来源"开关：manual 用 3 组、ledger 用单值 `cost_price`。
+无论哪种，前端读数入口只有一个 `getActiveCost()`，改动面很小——这就是把"取成本"收敛成单一函数的意义。
 
 ### 3.2 交易事件推送契约（草案，Phase 3 前端实现，Phase 1 ledger 接收）
 ```
