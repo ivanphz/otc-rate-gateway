@@ -52,11 +52,20 @@ VPS 抓取节点     Worker 抓取节点(otc-spider-api)
 
 ### 3.3 成本价接口 `GET|POST /cost`（Phase 0）
 ```jsonc
-{ "cost_price": 6.73, "updated_at": 1783066423811, "source": "manual" }
+{
+  "slots": [
+    { "price": 6.72, "updated_at": 1783..., "note": "6/20 100万" },
+    { "price": 6.75, "updated_at": 1783..., "note": "" },
+    { "price": null, "updated_at": null,   "note": "" }
+  ],
+  "active": 1,          // 生效组下标(0..2)，驱动 卖出U/代收RMB 的成本浮盈
+  "source": "manual"
+}
 ```
-- POST `{cost_price: 正数}` 保存；`{cost_price: null|0}` 清除；>100 拒绝(防呆)。
+- 固定 3 个槽，用户手动点选 `active` 生效(方案B)，另两组仅备查。
+- POST 提交整份 state 覆盖存储(单用户、last-write-wins)；服务端校验：每组 price ∈ (0,100] 或 null、note ≤20 字、active ∈ 0..2。
 - KV 键 `cost:usdt_cny`——键名带币对，为多币种预留。
-- `source` 字段是给未来记账系统留的插槽（届时值为 `"ledger"`），前端不应假设它恒为 manual。
+- `source` 是给未来记账系统留的插槽（届时 `"ledger"`）。
 
 ## 4. 设计决策记录（为什么是现在这个样子）
 
@@ -69,7 +78,7 @@ VPS 抓取节点     Worker 抓取节点(otc-spider-api)
 | D5 | NODES 放 CF 后台变量 + `keep_vars=true` | VPS 地址是隐私；keep_vars 防 CI 部署冲掉后台变量 | 不推翻 |
 | D6 | KV 绑定必须写在 wrangler.toml | keep_vars 只保变量、**保不住绑定**，后台手加的绑定会被 CI 部署清掉 | 不推翻 |
 | D7 | `/cost` 无鉴权 | 自用、URL 不外传、KV 里只有一个价格数字，被改一眼识破、零损失 | **触发条件：一旦要存交易明细/多条记录，必须先加鉴权**（见 ROADMAP 红线） |
-| D8 | 成本价 = 手工维护的单一数字 | 现阶段交易模式是一次性大额买入，卖完前成本固定，单价足够准确 | 记账系统(Phase 1)上线后，成本改由 ledger 供数 |
+| D8 | 成本价 = 3 组手工维护、手动点选生效(方案B) | 现阶段一次性大额买入、卖完前成本固定；可能同时压几批货，故存 3 组备查，但只有生效组进浮盈计算，避免自动滚动误删 | 记账系统(Phase 1)上线后，成本改由 ledger 供数 |
 | D9 | HTX/Bybit 带 Origin/Referer 头 | 尝试绕过来源校验的实验性措施，未验证有效 | 观测若持续空结果，考虑仅走 VPS 抓取或砍掉 |
 
 ## 5. 加源 SOP
