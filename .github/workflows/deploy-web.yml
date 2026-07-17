@@ -11,10 +11,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Generate config.js (inject gateway URL from secret)
         run: |
           cp apps/web/config.example.js apps/web/config.js
           sed -i "s|__WORKER_URL__|${{ vars.GATEWAY_URL }}|g" apps/web/config.js
+          
+      - name: Create Pages Project (if not exists)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        # 加上 -y 确保在没有本地依赖的情况下 npx 也能自动下载执行
+        run: npx -y wrangler pages project create otc-calc-web --production-branch main || true
+
       - name: Deploy Pages
         uses: cloudflare/wrangler-action@v3
         with:
