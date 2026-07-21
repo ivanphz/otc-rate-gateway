@@ -12,10 +12,15 @@
         /* 极致精简的悬浮顶部 */
         .sticky-header { position: sticky; top: 0; z-index: 100; background: var(--card); padding: 12px 15px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px; }
         .rate-control-group { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 5px; }
-        .rate-main-row { display: flex; align-items: center; justify-content: space-between; font-weight: bold; }
+        .rate-main-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: bold; }
+        .rate-main-row > span:first-child { white-space: nowrap; }
         .rate-input { width: 90px; padding: 6px; font-size: 16px; text-align: center; background: var(--yellow); border: 1px solid #ddd; border-radius: 5px; transition: all 0.2s; font-weight: bold;}
         .rate-input:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 2px rgba(0,82,204,0.2); }
-        .stepper-group { display: flex; align-items: center; gap: 5px; }
+        .stepper-group { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; flex-shrink: 0; }
+        /* 隐藏数字输入框原生上下箭头：iOS Safari 会用它挤占宽度并挤乱布局，我们已有自己的 −/＋ */
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
         .btn-step { width: 34px; height: 34px; flex-shrink: 0; border: 1px solid #ddd; background: #f0f2f5; border-radius: 6px; font-size: 18px; font-weight: bold; color: #333; cursor: pointer; line-height: 1; padding: 0; }
         .btn-step:active { background: #cbd5e0; }
         .cost-panel { max-width: 1400px; margin: 0 auto 15px; background: #fff; border-radius: 12px; padding: 12px 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
@@ -46,6 +51,9 @@
             .cost-slots { grid-template-columns: 1fr; gap: 8px; }
             .cost-slot { padding: 8px; }
             .cost-panel { padding: 10px; }
+            /* 顶部两组汇率改为上下堆叠，各自独占一行，避免 iPhone 上按钮被挤换行 */
+            .sticky-header { position: static; flex-direction: column; gap: 10px; }
+            .rate-control-group { width: 100%; min-width: 0; flex: none; }
         }
         .sys-rate-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; }
         .btn-restore { background: #e2e8f0; border: none; padding: 2px 6px; border-radius: 4px; font-size: 10px; color: #4a5568; cursor: pointer; transition: 0.2s;}
