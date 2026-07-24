@@ -15,7 +15,7 @@ USDT/CNY 场外交易的**行情聚合 + 报价计算**工具，自用。
     │  GET /          行情
     │  GET|POST /cost 成本价
     ▼
-apps/gateway (CF Worker: otc-gateway-api) ←→ KV(OTC_KV, 只存成本价一个数字)
+apps/gateway (CF Worker: otc-gateway-api) ←→ KV(OTC_KV, 只存成本价 3 组，不含交易明细)
     │  并发拉取 + 按 id 碎片化拼图 + 拼齐即返回
     ├──────────────┬──────────────
     ▼              ▼
@@ -77,7 +77,7 @@ VPS 抓取节点     Worker 抓取节点(otc-spider-api)
 | D4 | 抓取端双平台、网关只跑 Worker | 只有抓取端需要绕交易所对 CF IP 的封锁(VPS 真实 IP 兜底)；网关没这个需求，不 Docker 化 | Worker 彻底抓不到任何交易所时再议 |
 | D5 | NODES 放 CF 后台变量 + `keep_vars=true` | VPS 地址是隐私；keep_vars 防 CI 部署冲掉后台变量 | 不推翻 |
 | D6 | KV 绑定必须写在 wrangler.toml | keep_vars 只保变量、**保不住绑定**，后台手加的绑定会被 CI 部署清掉 | 不推翻 |
-| D7 | `/cost` 无鉴权 | 自用、URL 不外传、KV 里只有一个价格数字，被改一眼识破、零损失 | **触发条件：一旦要存交易明细/多条记录，必须先加鉴权**（见 ROADMAP 红线） |
+| D7 | `/cost` 无鉴权 | 自用、URL 不外传、KV 里只有成本价(价格+备注)、无交易明细，被改一眼识破、零损失 | **触发条件：一旦要存交易明细/多条记录，必须先加鉴权**（见 ROADMAP 红线） |
 | D8 | 成本价 = 3 组手工维护、手动点选生效(方案B) | 现阶段一次性大额买入、卖完前成本固定；可能同时压几批货，故存 3 组备查，但只有生效组进浮盈计算，避免自动滚动误删 | 记账系统(Phase 1)上线后，成本改由 ledger 供数 |
 | D9 | HTX/Bybit 带 Origin/Referer 头 | 尝试绕过来源校验的实验性措施，未验证有效 | 观测若持续空结果，考虑仅走 VPS 抓取或砍掉 |
 
