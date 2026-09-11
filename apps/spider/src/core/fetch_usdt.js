@@ -110,84 +110,55 @@ export const getUsdtRates = async () => {
             return { rate: depthResult.rate, summary: depthResult.summary, details: details };
         }, STRATEGY_CONFIG.REQUEST_TIMEOUT),
 
-        // —— 计算源：HTX(火币) 我买U(卖方盘口) ——
-        // 未在官方文档中记录的内部接口，字段名未经真实数据验证，先上线观测。
+        // —— 计算源：Bitget 我买U(卖方盘口) ——
+        // 经实测验证通过：side 为数字 1，必填 adAreaId 字段
         makeReq(
-            "https://www.htx.com/-/x/otc/v1/data/trade-market?coinId=2&currency=1&tradeType=sell&currPage=1&payMethod=0&acceptOrder=0&country=&blockType=general&online=1&range=0&amount=",
-            {
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Origin": "https://www.htx.com",
-                    "Referer": "https://www.htx.com/"
-                }
-            },
-            { id: "htx_buy", source: "HTX [我买U/卖方盘口]", role: "price" },
-            d => {
-                let rawOrders = d.data || [];
-                let details = rawOrders.map(o => {
-                    let maxAmt = parseFloat(o.maxTradeLimit || 99999);
-                    let isVerify = o.isAdvancedVerify === true;
-
-                    let isValid = true;
-                    if (STRATEGY_CONFIG.ALLOW_VERIFY_ORDER === false && isVerify === true) isValid = false;
-                    if (maxAmt <= STRATEGY_CONFIG.MIN_QUOTE_AMOUNT) isValid = false;
-
-                    return {
-                        商家名_merchant: o.userName || "未知",
-                        汇率_price: parseFloat(o.price),
-                        要求验证单_requireVerify: isVerify,
-                        上限额度_max: maxAmt,
-                        是否被判定为有效单_isValid: isValid
-                    };
-                });
-
-                let validOrders = details.filter(o => o.是否被判定为有效单_isValid);
-                let depthResult = calculateDepthPrice(validOrders, false, STRATEGY_CONFIG.HTX_CLUSTER_THRESHOLD, STRATEGY_CONFIG.HTX_FALLBACK_RANK);
-
-                return { rate: depthResult.rate, summary: depthResult.summary, details: details };
-            },
-            STRATEGY_CONFIG.REQUEST_TIMEOUT
-        ),
-
-        // —— 计算源：Bybit 我买U(卖方盘口) ——
-        // 未在官方文档中记录的内部接口，字段名未经真实数据验证，先上线观测。
-        makeReq(
-            "https://api2.bybit.com/fiat/otc/item/online",
+            "https://www.bitget.com/v1/p2p/pub/adv/queryAdvList",
             {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Origin": "https://www.bybit.com", "Referer": "https://www.bybit.com/" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "language": "zh-CN"
+                },
                 body: JSON.stringify({
-                    userId: "", tokenId: "USDT", currencyId: "CNY", payment: [],
-                    side: "1", size: String(STRATEGY_CONFIG.BYBIT_FETCH_LIMIT || 20),
-                    page: "1", amount: "", authMaker: false, canTrade: false
+                    side: 1, // 1: 我买U (商家卖出盘口)
+                    coinCode: "USDT",
+                    fiatCode: "CNY",
+                    pageNo: 1,
+                    pageSize: STRATEGY_CONFIG.BITGET_FETCH_LIMIT || 20,
+                    adAreaId: ""
                 })
             },
-            { id: "bybit_buy", source: "Bybit [我买U/卖方盘口]", role: "price" },
+            { id: "bitget_buy", source: "Bitget [我买U/卖方盘口]", role: "price" },
             d => {
-                let rawOrders = d.result?.items || [];
+                let rawOrders = d.data?.dataList || [];
                 let details = rawOrders.map(o => {
-                    let maxAmt = parseFloat(o.maxQuote || o.maxAmount || 99999);
+                    let maxAmt = parseFloat(o.maxAmount || 99999);
                     let isValid = true;
                     if (maxAmt <= STRATEGY_CONFIG.MIN_QUOTE_AMOUNT) isValid = false;
 
                     return {
                         商家名_merchant: o.nickName || "未知",
                         汇率_price: parseFloat(o.price),
-                        要求验证单_requireVerify: false, // Bybit 未返回二次验证字段，暂不参与该项过滤
+                        要求验证单_requireVerify: false, // Bitget 公开单无强校验标识
                         上限额度_max: maxAmt,
                         是否被判定为有效单_isValid: isValid
                     };
                 });
 
                 let validOrders = details.filter(o => o.是否被判定为有效单_isValid);
-                let depthResult = calculateDepthPrice(validOrders, false, STRATEGY_CONFIG.BYBIT_CLUSTER_THRESHOLD, STRATEGY_CONFIG.BYBIT_FALLBACK_RANK);
+                let depthResult = calculateDepthPrice(
+                    validOrders,
+                    false,
+                    STRATEGY_CONFIG.BITGET_CLUSTER_THRESHOLD || 0.02,
+                    STRATEGY_CONFIG.BITGET_FALLBACK_RANK || 3
+                );
 
                 return { rate: depthResult.rate, summary: depthResult.summary, details: details };
             },
             STRATEGY_CONFIG.REQUEST_TIMEOUT
         )
-
-        // —— 以后再加别的平台，照这两段复制一份，换 id/source/URL/解析函数即可 ——
     ];
 
     return await Promise.all(usdtReqs);
