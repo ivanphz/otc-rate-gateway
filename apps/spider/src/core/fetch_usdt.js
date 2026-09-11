@@ -130,7 +130,7 @@ export const getUsdtRates = async () => {
                     adAreaId: ""
                 })
             },
-            { id: "bitget_buy", source: "Bitget [我买U/卖方盘口]", role: "price" },
+            { id: "bitget_buy", source: "Bitget [我买U/卖方盘口]", role: "reference" },
             d => {
                 let rawOrders = d.data?.dataList || [];
                 let details = rawOrders.map(o => {
