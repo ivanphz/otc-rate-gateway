@@ -25,8 +25,7 @@ window.APP_CONFIG = {
         usdt: [
             { name: "币安收U均价", ids: ["bin_buy"] },
             { name: "OKX收U均价",  ids: ["okx_buy"] },
-            { name: "HTX收U均价",  ids: ["htx_buy"] },
-            { name: "Bybit收U均价", ids: ["bybit_buy"] }
+            { name: "Bitget收U均价",  ids: ["bitget_buy"] },
             // 例：以后加了别的平台"我买U"，抓取端给它一个 id，这里就 { name:"xx收U", ids:["xx_buy"] }
         ]
     },
